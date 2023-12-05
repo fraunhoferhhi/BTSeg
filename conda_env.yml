@@ -1,0 +1,35 @@
+name: btseg-env
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.*
+  - python-devtools # for installing spatial-correlation-sampler
+  - pytorch::pytorch=2.0.1
+  - torchvision
+  - pytorch-cuda=11.7
+  - cudatoolkit # for installing
+  - cudatoolkit-dev # spatial-correlation-sampler
+  - jupyter
+  - notebook
+  - opencv
+  # - wandb # optional
+  - h5py
+  - pip
+  - pudb # debugger
+  - pip:
+      - largestinteriorrectangle
+      - pytorch-lightning[extra]==2.0.9
+      - torchmetrics
+      - jsonargparse[signatures]
+      - omegaconf
+      - h5py
+      - tensorboard
+      - pyrootutils # standardizing the project root setup
+      - rich
+      - seaborn
+      - matplotlib
+      - python-devtools # for installing spatial-correlation-sampler
+      - spatial-correlation-sampler # for computing the spatial correlation

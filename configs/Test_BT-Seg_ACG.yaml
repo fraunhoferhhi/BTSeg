@@ -1,0 +1,75 @@
+seed_everything: 1234
+
+trainer:
+  precision: bf16 # can't be used with DeepLabV3
+  max_steps: 10000
+  accumulate_grad_batches: 32 # should be the same as the effective batch size
+  num_sanity_val_steps: 1
+  accelerator: gpu
+  devices: 1
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+      init_args:
+        monitor: "val/iou_macro_adv"
+        mode: "max"
+        save_last: true
+        save_top_k: "2"
+
+data:
+  class_path: src.data.ACGDataModule
+  init_args:
+    data_dir: ${oc.env:DATA_DIR}
+    weather_condition: all
+    batch_size: 1
+    num_workers: 1
+
+model:
+  class_path: src.models.BT_SemanticSegmentation
+  init_args:
+    batch_size: 1
+    warm_up_steps_bt: 2500
+    effective_batch_size: 32
+    height_slide_inference: 1080
+    width_slide_inference: 1080
+    optimizer_strategy:
+      class_path: src.models.btseg.LRWarmupAndPolyDecay
+      init_args:
+        lr_classifier: 0.000016
+        lr_backbone: 0.000016
+        lr_projection_head_global: 0.00016
+        warmup_steps: 1500
+        exp_poly: 1.0
+    global_regularization_loss:
+      class_path: src.models.custom_losses.BarlowTwinsLoss
+      init_args:
+        z_dim: ${eval:'${model.init_args.global_projection_head.init_args.output_dim}'}
+    segmentation_network:
+      # class_path: src.models.networks.DeepLabV3
+      # init_args:
+      #   num_classes: ${eval:'${model.init_args.num_classes_segmentation}'}
+      #   pretrained_weights_backbone: imagenet
+      #   pretrained_weights_head: null
+      class_path: src.models.networks.SegFormer
+      init_args:
+        num_classes: ${eval:'${model.init_args.num_classes_segmentation}'}
+        pretrained_weights_backbone: cityscapes
+        pretrained_weights_head: cityscapes
+    global_projection_head:
+      class_path: src.models.heads.LinearProjectionHead
+      init_args:
+        input_dim: 1024 # 2048 for DeepLabV3, 1024 for SegFormer
+        hidden_dim_1: 512
+        output_dim: 256
+    pooling:
+      class_path: src.models.custom_layer.MyAdaptiveAvgPooling2D
+      # class_path: src.models.custom_layer.SegmentationGuidedPooling
+      # class_path: src.models.custom_layer.ConfWeightedPooling
+      # class_path: src.models.custom_layer.SegmentationConfidencePooling
+    segmentation_loss:
+      class_path: torch.nn.CrossEntropyLoss
+      init_args:
+        weight: null
+        ignore_index: ${eval:'${model.init_args.ignore_class_id}'}
+    balancing_factor_segmentation_bt: 10.0
+    num_classes_segmentation: 19 # as we ignore the background class
+    ignore_class_id: 19
